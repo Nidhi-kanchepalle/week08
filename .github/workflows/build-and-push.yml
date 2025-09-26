@@ -1,4 +1,5 @@
 name: build-and-push
+
 on:
   push:
     branches: [dev, main]
@@ -6,6 +7,7 @@ on:
       - "frontend/**"
       - "backend/**"
       - ".github/workflows/**"
+  workflow_dispatch: {}
 
 concurrency:
   group: build-${{ github.ref }}
@@ -15,8 +17,8 @@ permissions:
   contents: read
 
 env:
-  ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-  ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+  ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}   # e.g. nidhiweek08acr.azurecr.io
+  ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}                     # e.g. nidhiweek08acr
 
 jobs:
   build:
@@ -59,6 +61,7 @@ jobs:
       - name: Build & push ${{ matrix.name }}
         run: |
           IMAGE="${ACR_LOGIN_SERVER}/${{ matrix.image }}"
+          echo "Pushing $IMAGE:${{ steps.meta.outputs.TAG1 }} and $IMAGE:${{ steps.meta.outputs.TAG2 }}"
           docker build -f ${{ matrix.dockerfile }} \
             -t "$IMAGE:${{ steps.meta.outputs.TAG1 }}" \
             -t "$IMAGE:${{ steps.meta.outputs.TAG2 }}" \
