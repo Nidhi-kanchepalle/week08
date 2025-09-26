@@ -1,0 +1,71 @@
+name: build-and-push
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/**"
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+  ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: frontend
+            path: frontend
+            dockerfile: frontend/Dockerfile
+            image: frontend
+          - name: product_service
+            path: backend/product_service
+            dockerfile: backend/product_service/Dockerfile
+            image: product_service
+          - name: order_service
+            path: backend/order_service
+            dockerfile: backend/order_service/Dockerfile
+            image: order_service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ACR login
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Compute tags
+        id: meta
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          SHA="${GITHUB_SHA::7}"
+          echo "TAG1=${BRANCH}-${SHA}" >> $GITHUB_OUTPUT
+          echo "TAG2=${BRANCH}-latest" >> $GITHUB_OUTPUT
+
+      - name: Build & push ${{ matrix.name }}
+        run: |
+          IMAGE="${ACR_LOGIN_SERVER}/${{ matrix.image }}"
+          docker build -f ${{ matrix.dockerfile }} \
+            -t "$IMAGE:${{ steps.meta.outputs.TAG1 }}" \
+            -t "$IMAGE:${{ steps.meta.outputs.TAG2 }}" \
+            ${{ matrix.path }}
+          docker push "$IMAGE:${{ steps.meta.outputs.TAG1 }}"
+          docker push "$IMAGE:${{ steps.meta.outputs.TAG2 }}"
+
+      - name: Azure logout
+        if: always()
+        run: az logout
