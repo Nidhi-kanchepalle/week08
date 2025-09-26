@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: product-service-container
-        image: nidhiweek08acr.azurecr.io/product_service:latest
+        image: nidhiweek08acr.azurecr.io/product_service:dev-latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
